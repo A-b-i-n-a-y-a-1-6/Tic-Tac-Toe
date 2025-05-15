@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Tic-Tac-Toe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Press Start 2P', cursive;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+      color: white;
+    }
+    h1 { margin-top: 20px; }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2em;
+      background: #1e1e2f;
+      border: 2px solid #aaa;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .cell:hover { transform: scale(1.1); }
+    .info, .controls { margin-top: 20px; text-align: center; }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: #00c3ff;
+      color: #000;
+    }
+    .commentary {
+      margin-top: 20px;
+      font-size: 0.9em;
+      background: #333;
+      padding: 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic-Tac-Toe Showdown</h1>
+
+  <div class="controls">
+    <button onclick="startGame('pvp')">2 Player Mode</button>
+    <button onclick="startGame('easy')">VS Easy AI</button>
+    <button onclick="startGame('hard')">VS Hard AI</button>
+    <button onclick="undoMove()">Undo Move</button>
+    <button onclick="resetGame()">Reset Game</button>
+  </div>
+
+  <div class="info">
+    <p>Current Turn: <span id="turn">X</span></p>
+    <p>Time Left: <span id="timer">10</span> sec</p>
+    <p>Wins: X - <span id="xWins">0</span>, O - <span id="oWins">0</span>, Draws: <span id="draws">0</span></p>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="commentary" id="commentary">Welcome to the battlefield!</div>
+
+  <script>
+    const board = document.getElementById('board');
+    const turnSpan = document.getElementById('turn');
+    const timerSpan = document.getElementById('timer');
+    const xWinsSpan = document.getElementById('xWins');
+    const oWinsSpan = document.getElementById('oWins');
+    const drawsSpan = document.getElementById('draws');
+    const commentary = document.getElementById('commentary');
+
+    let cells = [];
+    let currentPlayer = 'X';
+    let gameMode = 'pvp';
+    let history = [];
+    let timer, timeLeft;
+    let xWins = 0, oWins = 0, draws = 0;
+
+    function startGame(mode) {
+      gameMode = mode;
+      resetGame();
+    }
+
+    function resetGame() {
+      clearInterval(timer);
+      board.innerHTML = '';
+      cells = Array(9).fill(null);
+      history = [];
+      currentPlayer = 'X';
+      turnSpan.textContent = currentPlayer;
+      timeLeft = 10;
+      timerSpan.textContent = timeLeft;
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.addEventListener('click', handleMove);
+        board.appendChild(cell);
+      }
+      commentary.textContent = "Let's see who dominates!";
+      startTimer();
+    }
+
+    function handleMove(e) {
+      const index = e.target.dataset.index;
+      if (cells[index]) return;
+      makeMove(index);
+    }
+
+    function makeMove(index) {
+      cells[index] = currentPlayer;
+      history.push(index);
+      board.children[index].textContent = currentPlayer === 'X' ? '🔥' : '💧';
+      commentary.textContent = randomComment(currentPlayer);
+      if (checkWin(currentPlayer)) {
+        endGame(currentPlayer);
+        return;
+      } else if (!cells.includes(null)) {
+        draws++;
+        drawsSpan.textContent = draws;
+        commentary.textContent = "It's a tie! Well fought!";
+        return;
+      }
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      turnSpan.textContent = currentPlayer;
+      timeLeft = 10;
+      if (gameMode !== 'pvp' && currentPlayer === 'O') aiMove();
+    }
+
+    function aiMove() {
+      setTimeout(() => {
+        let move;
+        if (gameMode === 'easy') {
+          let available = cells.map((v, i) => v === null ? i : null).filter(i => i !== null);
+          move = available[Math.floor(Math.random() * available.length)];
+        } else {
+          move = bestMove();
+        }
+        makeMove(move);
+      }, 500);
+    }
+
+    function undoMove() {
+      if (history.length === 0) return;
+      const index = history.pop();
+      cells[index] = null;
+      board.children[index].textContent = '';
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      turnSpan.textContent = currentPlayer;
+      commentary.textContent = "Undo! Plot twist incoming...";
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        timerSpan.textContent = timeLeft;
+        if (timeLeft === 0) {
+          clearInterval(timer);
+          commentary.textContent = currentPlayer + " ran out of time!";
+          currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+          turnSpan.textContent = currentPlayer;
+          timeLeft = 10;
+          startTimer();
+        }
+      }, 1000);
+    }
+
+    function endGame(winner) {
+      clearInterval(timer);
+      commentary.textContent = winner + " wins the war!";
+      if (winner === 'X') xWins++; else oWins++;
+      xWinsSpan.textContent = xWins;
+      oWinsSpan.textContent = oWins;
+    }
+
+    function checkWin(player) {
+      const winPatterns = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      return winPatterns.some(pattern =>
+        pattern.every(i => cells[i] === player)
+      );
+    }
+
+    function bestMove() {
+      let bestScore = -Infinity;
+      let move;
+      for (let i = 0; i < 9; i++) {
+        if (!cells[i]) {
+          cells[i] = 'O';
+          let score = minimax(cells, 0, false);
+          cells[i] = null;
+          if (score > bestScore) {
+            bestScore = score;
+            move = i;
+          }
+        }
+      }
+      return move;
+    }
+
+    function minimax(board, depth, isMaximizing) {
+      if (checkWin('O')) return 1;
+      if (checkWin('X')) return -1;
+      if (!board.includes(null)) return 0;
+      let best = isMaximizing ? -Infinity : Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (!board[i]) {
+          board[i] = isMaximizing ? 'O' : 'X';
+          let score = minimax(board, depth + 1, !isMaximizing);
+          board[i] = null;
+          best = isMaximizing ? Math.max(best, score) : Math.min(best, score);
+        }
+      }
+      return best;
+    }
+
+    function randomComment(player) {
+      const comments = {
+        X: ["🔥 is on fire!", "Bold move, Player X!", "Strategic strike by X!"],
+        O: ["💧 flows in!", "Cool move, Player O!", "O is flooding the board!"]
+      };
+      let lines = comments[player];
+      return lines[Math.floor(Math.random() * lines.length)];
+    }
+
+    startGame('pvp');
+  </script>
+</body>
+</html>
